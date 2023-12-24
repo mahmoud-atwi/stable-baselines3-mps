@@ -138,20 +138,33 @@ def get_device(device: Union[th.device, str] = "auto") -> th.device:
     """
     Retrieve PyTorch device.
     It checks that the requested device is available first.
-    For now, it supports only cpu and cuda.
+    Now, it supports cpu, cuda, and mps (Apple Metal Performance Shaders).
     By default, it tries to use the gpu.
 
-    :param device: One for 'auto', 'cuda', 'cpu'
+    :param device: One for 'auto', 'cuda', 'cpu', 'mps'
     :return: Supported Pytorch device
     """
-    # Cuda by default
+    # Choose best available device by default
     if device == "auto":
-        device = "cuda"
+        if th.cuda.is_available():
+            device = "cuda"
+        elif hasattr(th.backends, 'mps') and th.backends.mps.is_available():
+            device = "mps"
+        else:
+            device = "cpu"
+
     # Force conversion to th.device
     device = th.device(device)
 
-    # Cuda not available
+    # Check if cuda is requested but not available
     if device.type == th.device("cuda").type and not th.cuda.is_available():
+        if hasattr(th.backends, 'mps') and th.backends.mps.is_available():
+            return th.device("mps")
+        else:
+            return th.device("cpu")
+
+    # Check if mps is requested but not available
+    if device.type == "mps" and not (hasattr(th.backends, 'mps') and th.backends.mps.is_available()):
         return th.device("cpu")
 
     return device
